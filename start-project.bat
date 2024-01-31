@@ -1,0 +1,1 @@
+start cmd.exe /k "cd C:\Users\aleja\OneDrive\Escritorio\Proyectos\MERN-social && npm start"
