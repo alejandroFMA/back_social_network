@@ -19,4 +19,4 @@ const createToken = (user) =>{
     return jwt.encode(payload, secret);
 }
 
-module.exports = {createToken}
+module.exports = {createToken, secret}
