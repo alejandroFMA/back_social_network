@@ -1,6 +1,8 @@
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const jwt = require("../services/jwt");
+const fs = require("fs");
+const path = require("path");
 
 const register = async (req, res) => {
   let body = req.body;
@@ -165,11 +167,10 @@ const list = async (req, res) => {
       message: "Error fetching info users " + error.message,
     });
   }
-}
-
+};
 
 const update = async (req, res) => {
-  let userId = req.user.id; 
+  let userId = req.user.id;
   let body = { ...req.body };
 
   delete body.iat;
@@ -178,54 +179,116 @@ const update = async (req, res) => {
   delete body.image;
 
   try {
-      const existingUser = await User.findOne({
-          $or: [{ email: body.email }, { nick: body.nick }],
-          _id: { $ne: userId } 
+    const existingUser = await User.findOne({
+      $or: [{ email: body.email }, { nick: body.nick }],
+      _id: { $ne: userId },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        status: "error",
+        message: "Email or nick already exists",
       });
+    }
 
-      if (existingUser) {
-          return res.status(400).json({
-              status: "error",
-              message: "Email or nick already exists",
-          });
-      }
+    if (body.password) {
+      body.password = await bcrypt.hash(body.password, 10);
+    }
 
-      if (body.password) {
-          body.password = await bcrypt.hash(body.password, 10);
-      }
+    const updatedUser = await User.findByIdAndUpdate({_id: userId}, body, {
+      new: true,
+      select: "-password -__v",
+    });
 
-      const updatedUser = await User.findByIdAndUpdate(userId, body, { new: true, select: '-password -__v' });
-
-      if (!updatedUser) {
-          return res.status(404).json({
-              status: "error",
-              message: "User not found",
-          });
-      }
-
-      return res.status(200).json({
-          status: "success",
-          user: updatedUser,
+    if (!updatedUser) {
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
       });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      user: updatedUser,
+    });
   } catch (error) {
-      return res.status(500).json({
-          status: "error",
-          message: "Error updating user: " + error.message,
-      });
+    return res.status(500).json({
+      status: "error",
+      message: "Error updating user: " + error.message,
+    });
   }
 };
 
-
 const upload = async (req, res) => {
+  let userId = req.user.id;
+
   if (!req.file) {
-      return res.status(400).send({
-          message: "No file uploaded",
-      });
+    return res.status(400).send({
+      message: "No file uploaded",
+    });
   }
 
-  return res.status(200).send({
-      message: "File uploaded successfully",
+  let image = req.file.originalname;
+
+  let split = image.split(".");
+  let extention = split[1].toLowerCase();
+
+  if (
+    extention != "png" &&
+    extention != "jpg" &&
+    extention != "jpeg" &&
+    extention != "gif"
+  ) {
+    const filePath = req.file.path;
+    const fileDelete = fs.unlinkSync(filePath);
+    return res.status(400).json({
+      status: "error",
+      message: "Invalid file type: " + extention,
+    });
+  }
+
+  try {
+    let userUpdated = await User.findByIdAndUpdate(
+      {_id: userId},
+      { image: req.file.filename },
+      {
+        new: true,
+      }
+    );
+
+    if (!userUpdated) {
+      throw new Error("User not found");
+    }
+    return res.status(200).json({
+      status: "success",
+      user: userUpdated,
       file: req.file,
+    });
+  } catch (error) {
+    if (req.file?.path) {
+      fs.unlinkSync(req.file.path);
+    }
+    return res.status(500).json({
+      status: "error",
+      message: "Error updating image: " + error.message,
+    });
+  }
+};
+
+const avatar =  (req, res) => {
+  const file = req.params.file;
+
+  const filePath = "./uploads/avatars/" + file;
+
+  fs.stat(filePath, (error, exists) => {
+    if (error) {
+      return res.status(404).json({
+        status: "error",
+        message: "File does not exist",
+      });
+    }
+
+    return res.sendFile(path.resolve(filePath))
   });
 };
 
@@ -235,6 +298,7 @@ module.exports = {
   prueba,
   profile,
   list,
-  update, 
-  upload
+  update,
+  upload,
+  avatar,
 };
