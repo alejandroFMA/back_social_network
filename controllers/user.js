@@ -167,10 +167,74 @@ const list = async (req, res) => {
   }
 }
 
+
+const update = async (req, res) => {
+  let userId = req.user.id; 
+  let body = { ...req.body };
+
+  delete body.iat;
+  delete body.exp;
+  delete body.role;
+  delete body.image;
+
+  try {
+      const existingUser = await User.findOne({
+          $or: [{ email: body.email }, { nick: body.nick }],
+          _id: { $ne: userId } 
+      });
+
+      if (existingUser) {
+          return res.status(400).json({
+              status: "error",
+              message: "Email or nick already exists",
+          });
+      }
+
+      if (body.password) {
+          body.password = await bcrypt.hash(body.password, 10);
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(userId, body, { new: true, select: '-password -__v' });
+
+      if (!updatedUser) {
+          return res.status(404).json({
+              status: "error",
+              message: "User not found",
+          });
+      }
+
+      return res.status(200).json({
+          status: "success",
+          user: updatedUser,
+      });
+  } catch (error) {
+      return res.status(500).json({
+          status: "error",
+          message: "Error updating user: " + error.message,
+      });
+  }
+};
+
+
+const upload = async (req, res) => {
+  if (!req.file) {
+      return res.status(400).send({
+          message: "No file uploaded",
+      });
+  }
+
+  return res.status(200).send({
+      message: "File uploaded successfully",
+      file: req.file,
+  });
+};
+
 module.exports = {
   register,
   login,
   prueba,
   profile,
   list,
+  update, 
+  upload
 };
