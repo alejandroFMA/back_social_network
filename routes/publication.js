@@ -1,6 +1,6 @@
 const PublicationControllers = require("../controllers/publication");
 const express = require ("express");
-const auth = require("../middlewares/auth")
+const {auth} = require("../middlewares/auth")
 const multer = require("multer")
 const router = express.Router();
 const path = require('path');
@@ -25,13 +25,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 router.get("/prueba", PublicationControllers.prueba)
-router.post("/create", PublicationControllers.createPublication);
+router.post("/create", auth, PublicationControllers.createPublication);
 router.post("/upload-file/:id", [upload.single("file")],PublicationControllers.uploadFile);
-router.get("/:last?", PublicationControllers.getPublications);
+router.get("/all/:id?", auth, PublicationControllers.list);
 router.get("/image/:file", PublicationControllers.getImage);
-router.get("/:id", PublicationControllers.getPublicationById);
+router.get("/detail/:id", PublicationControllers.getPublicationById);
 router.get("/search/:query", PublicationControllers.search);
-router.put("/:id", PublicationControllers.editPublication);
-router.delete("/:id", PublicationControllers.deletePublication);
+// router.put("/:id", PublicationControllers.editPublication);
+router.delete("/delete/:id", auth, PublicationControllers.deletePublication);
 
 module.exports= router
