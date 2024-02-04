@@ -5,9 +5,9 @@ const router = express.Router();
 
 
 router.post("/create", auth, followControllers.create)
-router.delete("/erase", followControllers.erase)
-router.get("/list-follows", followControllers.listFollows)
-router.get("/list-followed", followControllers.listFollowed)
+router.delete("/unfollow/:id", auth, followControllers.unfollow)
+router.get("/following", auth, followControllers.following)
+router.get("/followers", auth, followControllers.followers)
 
 
 module.exports= router

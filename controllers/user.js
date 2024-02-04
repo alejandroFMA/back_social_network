@@ -3,6 +3,8 @@ const User = require("../models/User");
 const jwt = require("../services/jwt");
 const fs = require("fs");
 const path = require("path");
+const { followUsersId, followThisUser} = require("../services/followUsersId");
+
 
 const register = async (req, res) => {
   let body = req.body;
@@ -109,10 +111,12 @@ const prueba = (req, res) => {
 };
 
 const profile = async (req, res) => {
-  let id = req.params.id;
+  
+  let userId= req.user.id;
+  let profileId = req.params.id;
 
   try {
-    let user = await User.findById(id).select("-__v -password");
+    let user = await User.findById(profileId).select("-__v -password");
 
     if (!user) {
       return res.status(404).json({
@@ -121,9 +125,13 @@ const profile = async (req, res) => {
       });
     }
 
+    let follows = await followThisUser(userId, profileId)
+
     return res.status(200).json({
       status: "success",
       user,
+      following: follows.following,
+      follower: follows.followers
     });
   } catch (error) {
     return res.status(500).json({
@@ -134,6 +142,7 @@ const profile = async (req, res) => {
 };
 
 const list = async (req, res) => {
+
   let page = parseInt(req.params.page, 10) || 1;
   let itemsPerPage = 5;
 
@@ -153,11 +162,15 @@ const list = async (req, res) => {
       });
     }
 
+    let followUserId = await followUsersId(req.user.id);
+
     return res.status(200).json({
       status: "success",
       itemsPerPage,
       page,
       users: result.docs,
+      user_following: followUserId.following,
+      user_following_me: followUserId.followers,
       total: result.totalDocs,
       totalPages: result.totalPages,
     });
