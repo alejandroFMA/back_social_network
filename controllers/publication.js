@@ -199,8 +199,6 @@ const userPublication = async(req,res) => {
 };
 
 
-
-
 // const editPublication = async (req, res) => {
 //   let id = req.params.id;
 //   let parameters = req.body;
@@ -310,14 +308,12 @@ const getMedia = async (req, res) => {
 const search = async (req, res) => {
   let query = req.params.query;
   try {
+    let regex = new RegExp(query, "i");
+
     let results = await Publication.find({
-      $or: [
-        { title: { $regex: query, $options: "i" } },
-        { content: { $regex: query, $options: "i" } },
-      ],
+      text: { $regex: regex },
     })
-      .sort({ date: -1 })
-      .exec();
+    .sort({ date: -1 });
 
     if (results.length === 0) {
       return res.status(404).json({

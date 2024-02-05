@@ -1,24 +1,27 @@
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
+const Follow = require("../models/Follow");
+const Publication = require("../models/Publication");
+const { validateUser } = require("../services/validation");
 const jwt = require("../services/jwt");
 const fs = require("fs");
 const path = require("path");
-const { followUsersId, followThisUser} = require("../services/followUsersId");
-
+const { followUsersId, followThisUser } = require("../services/followUsersId");
 
 const register = async (req, res) => {
-  let body = req.body;
-  body.email = body.email.toLowerCase();
-  body.nick = body.nick.toLowerCase();
-
-  if (!body.name || !body.email || !body.password || !body.nick) {
-    return res.status(400).json({
-      status: "error",
-      message: "Must send required data",
-    });
-  }
-
   try {
+    let body = req.body;
+
+    validateUser(body);
+
+    body.email = body.email.toLowerCase();
+
+    if (!body.name || !body.email || !body.password || !body.nick) {
+      return res.status(400).json({
+        status: "error",
+        message: "Must send required data",
+      });
+    }
     let existingUser = await User.findOne({
       $or: [{ email: body.email }, { nick: body.nick }],
     });
@@ -111,8 +114,7 @@ const prueba = (req, res) => {
 };
 
 const profile = async (req, res) => {
-  
-  let userId= req.user.id;
+  let userId = req.user.id;
   let profileId = req.params.id;
 
   try {
@@ -125,13 +127,13 @@ const profile = async (req, res) => {
       });
     }
 
-    let follows = await followThisUser(userId, profileId)
+    let follows = await followThisUser(userId, profileId);
 
     return res.status(200).json({
       status: "success",
       user,
       following: follows.following,
-      follower: follows.followers
+      follower: follows.followers,
     });
   } catch (error) {
     return res.status(500).json({
@@ -141,8 +143,31 @@ const profile = async (req, res) => {
   }
 };
 
-const list = async (req, res) => {
+const counter = async (req, res) => {
+  let userId = req.query.id || req.user.id;
 
+  try {
+    const [follows, followers, publications] = await Promise.all([
+      Follow.countDocuments({ user: userId }),
+      Follow.countDocuments({ followed: userId }),
+      Publication.countDocuments({ user: userId }),
+    ]);
+
+    return res.status(200).json({
+      status: "success",
+      userId,
+      follows,
+      followers,
+      publications,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Error fetching data" + error.message,
+    });
+  }
+};
+const list = async (req, res) => {
   let page = parseInt(req.params.page, 10) || 1;
   let itemsPerPage = 5;
 
@@ -151,6 +176,7 @@ const list = async (req, res) => {
       page,
       limit: itemsPerPage,
       sort: { _id: 1 },
+      select: "-password -email -role -__v",
     };
 
     let result = await User.paginate({}, options);
@@ -206,9 +232,11 @@ const update = async (req, res) => {
 
     if (body.password) {
       body.password = await bcrypt.hash(body.password, 10);
+    } else {
+      delete body.password;
     }
 
-    const updatedUser = await User.findByIdAndUpdate({_id: userId}, body, {
+    const updatedUser = await User.findByIdAndUpdate({ _id: userId }, body, {
       new: true,
       select: "-password -__v",
     });
@@ -262,7 +290,7 @@ const upload = async (req, res) => {
 
   try {
     let userUpdated = await User.findByIdAndUpdate(
-      {_id: userId},
+      { _id: userId },
       { image: req.file.filename },
       {
         new: true,
@@ -288,7 +316,7 @@ const upload = async (req, res) => {
   }
 };
 
-const avatar =  (req, res) => {
+const avatar = (req, res) => {
   const file = req.params.file;
 
   const filePath = "./uploads/avatars/" + file;
@@ -301,12 +329,13 @@ const avatar =  (req, res) => {
       });
     }
 
-    return res.sendFile(path.resolve(filePath))
+    return res.sendFile(path.resolve(filePath));
   });
 };
 
 module.exports = {
   register,
+  counter,
   login,
   prueba,
   profile,

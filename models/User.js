@@ -13,6 +13,7 @@ const UserSchema = Schema({
   nick: {
     type: String,
     required: true,
+    unique:true
   },
 
   bio:String,
@@ -20,6 +21,7 @@ const UserSchema = Schema({
   email: {
     type: String,
     required: true,
+    unique:true
   },
 
   password:{

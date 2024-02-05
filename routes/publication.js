@@ -31,7 +31,7 @@ router.post("/upload/:id", [auth, upload.single("file0")],PublicationControllers
 router.get("/feed/:page?", auth, PublicationControllers.feed); //funciona por query ?id= &page=
 router.get("/user", auth, PublicationControllers.userPublication);
 router.get("/media/:file", PublicationControllers.getMedia);
-router.get("/detail/:id", PublicationControllers.getPublicationById);
+router.get("/detail/:id", auth, PublicationControllers.getPublicationById);
 router.get("/search/:query", PublicationControllers.search);
 // router.put("/:id", PublicationControllers.editPublication);
 router.delete("/delete/:id", auth, PublicationControllers.deletePublication);
