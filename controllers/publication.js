@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 const { validatePublication } = require("../services/validation");
+const { followUsersId, followThisUser} = require("../services/followUsersId");
+
 
 const prueba = (req, res) => {
   return res.status(200).json({
@@ -40,53 +42,54 @@ const createPublication = async (req, res) => {
   }
 };
 
-const list = async (req, res) => {
+const feed = async (req, res) => {
   try {
-    let userId = req.params.id || req.user.id
+    let userId = req.user.id;
 
-    
-
-    let page = parseInt(req.params.page, 10) || 1;
+    let page = parseInt(req.query.page, 10) || 1;
     let itemsPerPage = 5;
-  
-      const options = {
-        page,
-        limit: itemsPerPage,
-        sort: { _id: -1 },
-        populate: {
-          path: 'user', 
-          select: '-password -__v -created_at -role' 
-        }
-      };
-  
-      let result = await Publication.paginate({user:userId}, options);
-      // let user = await User.findById(userId).select('-password -__v -created_at -role')
-  
-      if (!result.docs.length) {
-        return res.status(404).json({
-          status: "error",
-          message: "No publications found",
-        });
-      }
-  
-      return res.status(200).json({
-        status: "success",
-        itemsPerPage,
-        user:req.user,
-        page,
-        publications: result.docs,
-        total: result.totalDocs,
-        totalPages: result.totalPages,
-      });
-    } catch (error) {
-      return res.status(500).json({
+
+    const options = {
+      page,
+      limit: itemsPerPage,
+      sort: { _id: -1 },
+      populate: {
+        path: "user",
+        select: "-password -__v -created_at -role -email",
+      },
+    };
+    const myFollows = await followUsersId(userId)
+
+
+    let result = await Publication.paginate({ user: myFollows.following }, options);
+    // let user = await User.findById(userId).select('-password -__v -created_at -role')
+
+    if (!result.docs.length) {
+      return res.status(404).json({
         status: "error",
-        message: "Error fetching info users " + error.message,
+        message: "No publications found",
+        
       });
     }
+
+    return res.status(200).json({
+      status: "success",
+      itemsPerPage,
+      total: result.totalDocs,
+      totalPages: result.totalPages,
+      user: req.user.nick,
+      page,
+      following: myFollows.following,
+      publications: result.docs
+      
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Error fetching info users " + error.message,
+    });
   }
-
-
+};
 
 const getPublicationById = async (req, res) => {
   try {
@@ -127,7 +130,7 @@ const deletePublication = async (req, res) => {
 
     let publicationToDelete = await Publication.findOneAndDelete({
       _id: id,
-      user: req.user.id
+      user: req.user.id,
     });
 
     if (!publicationToDelete) {
@@ -188,6 +191,8 @@ const deletePublication = async (req, res) => {
 const uploadFile = async (req, res) => {
   //configurar multer
   //recoger fichero de imagen
+  const publicationId = req.params.id;
+
   if (!req.file && !req.files) {
     return res.status(404).json({
       status: "Error",
@@ -211,25 +216,25 @@ const uploadFile = async (req, res) => {
         status: "Error",
         message: "Invalid image extension.",
       });
-    } else {
-      let id = req.params.id;
-      let publicationToUpdate = await Publication.findOneAndUpdate(
-        { _id: id },
-        { image: req.file.filename },
-        {
-          new: true,
-        }
-      );
-
-      if (publicationToUpdate) {
-        return res.status(200).json({
-          status: "success",
-          publication: publicationToUpdate,
-          message: "Publication Image updated succesfully",
-          file: req.file,
-        });
-      }
     }
+    let publicationToUpdate = await Publication.findOneAndUpdate(
+      { _id: publicationId, user: req.user.id }, // Filtro para asegurar que la publicación pertenezca al usuario.
+      { file: req.file.filename }, // Actualización para añadir/modificar el archivo de la publicación.
+      { new: true } // Opciones para devolver el documento modificado.
+    );
+
+    if (!publicationToUpdate) {
+      return res.status(404).json({
+        status: "error",
+        message: "Publication not found or permission denied.",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      publication: publicationToUpdate,
+      file: req.file,
+    });
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({
@@ -239,16 +244,16 @@ const uploadFile = async (req, res) => {
   }
 };
 
-const getImage = async (req, res) => {
+const getMedia = async (req, res) => {
   let file = req.params.file;
-  let dir = "./uploads/publications/" + file;
+  let dir = "./uploads/images/" + file;
   fs.access(dir, (error) => {
     if (!error) {
       return res.sendFile(path.resolve(dir));
     } else {
       return res.status(404).json({
         status: "error",
-        messsage: "Image does not exist",
+        messsage: "File does not exist",
       });
     }
   });
@@ -291,10 +296,10 @@ module.exports = {
   prueba,
   createPublication,
   search,
-  getImage,
+  getMedia,
   uploadFile,
   // editPublication,
   deletePublication,
-  list,
+  feed,
   getPublicationById,
 };

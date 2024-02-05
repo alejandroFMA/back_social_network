@@ -12,23 +12,24 @@ if (!fs.existsSync(dir)){
 }
 
 const storage = multer.diskStorage({
-    destination: (req, files, cb) => {
+    destination: (req, file, cb) => {
         cb(null, dir);
     },
-    filename:(req, files, cb) => {
+    filename:(req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const sanitizedOriginalName = files.originalname.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
-        const filename = "article" + uniqueSuffix + "-" + sanitizedOriginalName;
+        const sanitizedOriginalName = file.originalname.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+        const filename = "pub" + uniqueSuffix + "-" + sanitizedOriginalName;
         cb(null, filename);
     }
 });
 
 const upload = multer({ storage: storage });
+
 router.get("/prueba", PublicationControllers.prueba)
 router.post("/create", auth, PublicationControllers.createPublication);
-router.post("/upload-file/:id", [upload.single("file")],PublicationControllers.uploadFile);
-router.get("/all/:id?", auth, PublicationControllers.list);
-router.get("/image/:file", PublicationControllers.getImage);
+router.post("/upload/:id", [auth, upload.single("file0")],PublicationControllers.uploadFile);
+router.get("/feed/:page?", auth, PublicationControllers.feed); //funciona por query ?id= &page=
+router.get("/media/:file", PublicationControllers.getMedia);
 router.get("/detail/:id", PublicationControllers.getPublicationById);
 router.get("/search/:query", PublicationControllers.search);
 // router.put("/:id", PublicationControllers.editPublication);
