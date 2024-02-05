@@ -29,6 +29,7 @@ router.get("/prueba", PublicationControllers.prueba)
 router.post("/create", auth, PublicationControllers.createPublication);
 router.post("/upload/:id", [auth, upload.single("file0")],PublicationControllers.uploadFile);
 router.get("/feed/:page?", auth, PublicationControllers.feed); //funciona por query ?id= &page=
+router.get("/user", auth, PublicationControllers.userPublication);
 router.get("/media/:file", PublicationControllers.getMedia);
 router.get("/detail/:id", PublicationControllers.getPublicationById);
 router.get("/search/:query", PublicationControllers.search);

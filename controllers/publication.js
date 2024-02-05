@@ -64,7 +64,7 @@ const feed = async (req, res) => {
     let result = await Publication.paginate({ user: myFollows.following }, options);
     // let user = await User.findById(userId).select('-password -__v -created_at -role')
 
-    if (!result.docs.length) {
+    if (!result.docs.length || !result) {
       return res.status(404).json({
         status: "error",
         message: "No publications found",
@@ -152,6 +152,54 @@ const deletePublication = async (req, res) => {
     });
   }
 };
+
+const userPublication = async(req,res) => {
+  try {
+    let userId = req.query.id || req.user.id;
+
+    let page = parseInt(req.query.page, 10) || 1;
+    let itemsPerPage = 5;
+
+    const options = {
+      page,
+      limit: itemsPerPage,
+      sort: { _id: -1 },
+      populate: {
+        path: "user",
+        select: "-password -__v -created_at -role -email",
+      },
+    };
+
+    let result = await Publication.paginate({ user: userId }, options);
+
+    if (!result.docs.length || !result) {
+      return res.status(404).json({
+        status: "error",
+        message: "No publications found",
+        
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      itemsPerPage,
+      total: result.totalDocs,
+      totalPages: result.totalPages,
+      user: req.user.nick,
+      page,
+      publications: result.docs
+      
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Error fetching info users " + error.message,
+    });
+  }
+};
+
+
+
 
 // const editPublication = async (req, res) => {
 //   let id = req.params.id;
@@ -302,4 +350,5 @@ module.exports = {
   deletePublication,
   feed,
   getPublicationById,
+  userPublication
 };
